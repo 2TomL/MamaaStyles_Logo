@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nio Logo</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { background: #1a002a; }
+  </style>
+  <link rel="icon" type="image/png" href="assets/Copilot_20260212_153926.png">
+</head>
+<body>
+  <svg id="svg-filters">
+    <defs>
+      <filter id="water-distortion" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence id="turbulence" baseFrequency="0.015 0.01" numOctaves="2" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" />
+      </filter>
+    </defs>
+  </svg>
+
+  <div class="loader" id="loader">
+    <div class="progress-percentage" id="progress-percentage">0%</div>
+    <div class="progress-container">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <div class="loading-text">Loading a beautiful experience for the Sniper Goat <br>trust no shrimp!</div>
+  </div>
+
+  <main class="hero" id="hero">
+      <div class="hero__content">
+        <!-- Titel verwijderd -->
+      </div>
+  </main>
+
+  <!-- Logo animatie -->
+  <img id="logo-shield" src="assets/Copilot_20260212_160812.png" alt="Logo" />
+
+  <script type="module" src="main.js"></script>
+</body>
+
+<div class="nio-twitch"><a href="https://www.twitch.tv/imnio" target="_blank" rel="noopener">www.twitch.tv/imnio</a></div>
+<div class="mikey-credit">made by Mikey</div>
+</html>
+</body>
+</html>
