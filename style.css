@@ -167,6 +167,7 @@ canvas {
   text-shadow: 0 0 32px #ff4de3, 0 0 8px #fff0b3;
   background: linear-gradient(90deg, #ff4de3 0%, #fff0b3 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   font-family: 'Segoe UI', Arial, sans-serif;
   animation: loaderPulse 1.2s infinite alternate;
@@ -197,7 +198,7 @@ canvas {
   z-index: 20;
   pointer-events: none;
   filter: drop-shadow(0 8px 32px #a080ffcc);
-  transition: top 1.7s cubic-bezier(.22,1.5,.36,1), filter 0.3s;
+  transition: top 2.3s cubic-bezier(.22,1.5,.36,1), filter 0.3s;
 }
 
 #logo-wrapper {
@@ -210,11 +211,11 @@ canvas {
   max-width: 80vw;
   height: auto;
   z-index: 20;
-  transition: top 1.7s cubic-bezier(.22,1.5,.36,1);
+  transition: top 2.3s cubic-bezier(.22,1.5,.36,1);
 }
 
 #logo-wrapper.dropping {
-  top: calc(10vh);
+  top: calc(6vh);
 }
 
 #logo-shield-border {
@@ -239,7 +240,7 @@ canvas {
 }
 
 #logo-shield.dropping {
-  top: calc(20vh);
+  top: calc(14vh);
 }
 
 @media (max-width: 768px) {
