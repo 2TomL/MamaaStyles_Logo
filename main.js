@@ -1,3 +1,12 @@
+      // Glitch effect helper
+      function glitchOffset(idx, layer, t) {
+        // Slower and more sporadic glitch
+        const glitchFreq = 0.18 + 0.07 * layer;
+        const glitchAmp = 12 + 4 * layer;
+        // Only glitch every ~2 seconds, and only for a few segments
+        const glitchWindow = Math.floor(t / 2) % 2 === 0 && Math.random() > 0.98;
+        return Math.sin(idx * glitchFreq + t * (0.7 + layer * 0.3)) * glitchAmp * (glitchWindow ? 1 : 0);
+      }
 import * as THREE from "https://esm.sh/three@0.175.0";
 
 class App {
@@ -382,44 +391,59 @@ class App {
     });
   }
 
-  // create an animated glowing tube/ring around the centered logo
+  // Create multiple animated glowing 3D rings behind the logo for depth
   createGlowingRing() {
-    // radius in world (pixels) - will be scaled on resize
-    // smaller multiplier to reduce overall ring size
     const baseRadius = Math.min(window.innerWidth, window.innerHeight) * 0.22;
     this.ringInitialRadius = baseRadius;
-
-    const points = [];
-    const segments = 200;
-    for (let i = 0; i <= segments; i++) {
-      const angle = (i / segments) * Math.PI * 2;
-      points.push(
-        new THREE.Vector3(
-          Math.cos(angle) * baseRadius,
-          Math.sin(angle) * baseRadius,
-          0
-        )
-      );
+    this.rings = [];
+    this.ringMaterials = [];
+    this.ringCanvases = [];
+    this.ringContexts = [];
+    this.ringTextures = [];
+    const ringConfigs = [
+      { radius: baseRadius * 0.75, thickness: 12, z: -2, alpha: 0.97 },
+      { radius: baseRadius * 0.95, thickness: 18, z: -8, alpha: 0.55 },
+      { radius: baseRadius * 1.12, thickness: 24, z: -16, alpha: 0.33 }
+    ];
+    for (let idx = 0; idx < ringConfigs.length; idx++) {
+      const { radius, thickness, z, alpha } = ringConfigs[idx];
+      const points = [];
+      const segments = 200;
+      for (let i = 0; i <= segments; i++) {
+        const angle = (i / segments) * Math.PI * 2;
+        points.push(
+          new THREE.Vector3(
+            Math.cos(angle) * radius,
+            Math.sin(angle) * radius,
+            0
+          )
+        );
+      }
+      const curve = new THREE.CatmullRomCurve3(points, true);
+      const geometry = new THREE.TubeGeometry(curve, 400, thickness, 32, true);
+      // Animated electro canvas texture
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      const material = new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        opacity: alpha,
+        color: 0xffffff
+      });
+      const ring = new THREE.Mesh(geometry, material);
+      ring.visible = false;
+      ring.position.z = z;
+      this.scene.add(ring);
+      this.rings.push(ring);
+      this.ringMaterials.push(material);
+      this.ringCanvases.push(canvas);
+      this.ringContexts.push(ctx);
+      this.ringTextures.push(tex);
     }
-    const curve = new THREE.CatmullRomCurve3(points, true);
-    // super-thick radius for a massive tube
-    const geometry = new THREE.TubeGeometry(curve, 400, 12.0, 32, true);
-    // Use a custom material with an animated, jagged, electro-style canvas texture
-    this.ringCanvas = document.createElement('canvas');
-    this.ringCanvas.width = 256;
-    this.ringCanvas.height = 256;
-    this.ringCtx = this.ringCanvas.getContext('2d');
-    this.ringTex = new THREE.CanvasTexture(this.ringCanvas);
-    this.ringTex.wrapS = this.ringTex.wrapT = THREE.RepeatWrapping;
-    this.ringMaterial = new THREE.MeshBasicMaterial({
-      map: this.ringTex,
-      transparent: true,
-      opacity: 0.97,
-      color: 0xffffff
-    });
-    this.ring = new THREE.Mesh(geometry, this.ringMaterial);
-    this.ring.visible = false; // wait for logo drop event
-    this.scene.add(this.ring);
   }
 
   setupAutoDrops() {
@@ -454,28 +478,17 @@ class App {
       this.backgroundMaterial.uniforms.time.value += this.clock.getDelta();
     }
 
-    // update ring position to follow logo DOM element and animate electro effect
-    if (this.ring) {
+    // update ring positions to follow logo and animate electro effect for all rings
+    if (this.rings && this.rings.length) {
       const logoDom = document.getElementById("logo-shield");
+      let worldX = 0, worldY = 0;
       if (logoDom) {
         const rect = logoDom.getBoundingClientRect();
-        const worldX = rect.left + rect.width / 2 - window.innerWidth / 2;
-        // lower the ring slightly by subtracting a small offset
-        const offsetY = 20; // adjust as needed
-        const worldY = window.innerHeight / 2 - (rect.top + rect.height / 2) - offsetY;
-        this.ring.position.set(worldX, worldY, 0);
+        worldX = rect.left + rect.width / 2 - window.innerWidth / 2;
+        const offsetY = 20;
+        worldY = window.innerHeight / 2 - (rect.top + rect.height / 2) - offsetY;
       }
-
-
-      // Animate the electro effect on the ring's canvas with multi-octave noise
-      const ctx = this.ringCtx;
-      const w = this.ringCanvas.width;
-      const h = this.ringCanvas.height;
-      ctx.clearRect(0, 0, w, h);
-      ctx.save();
-      ctx.translate(w/2, h/2);
       const t = this.clock.getElapsedTime();
-      // Multi-octave noise function (simple sum of sines for visual effect)
       function electroNoise(angle, time, layer) {
         let n = 0;
         n += Math.sin(angle * 8 + time * 3 + layer * 1.2) * 8;
@@ -485,34 +498,48 @@ class App {
         n += Math.sin(angle * 61 + time * 0.7 + layer * 0.3) * 1.5;
         return n;
       }
-      // Draw multiple jagged, animated rings for a strong electro look
-      for (let layer = 0; layer < 4; layer++) {
-        ctx.beginPath();
-        for (let i = 0; i <= 256; i++) {
-          const angle = (i / 256) * Math.PI * 2;
-          // Multi-octave noise for jaggedness
-          const jag = electroNoise(angle, t, layer);
-          // Make the ring thicker by increasing base radius and layer spread
-          const r = 100 + layer * 13 + jag;
-          const x = Math.cos(angle) * r;
-          const y = Math.sin(angle) * r;
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+      // Zoom animation: scale radii in/out in a loop
+      const zoom = 0.7 + 0.3 * Math.sin(t * 0.7);
+      for (let idx = 0; idx < this.rings.length; idx++) {
+        const ring = this.rings[idx];
+        ring.position.set(worldX, worldY, ring.position.z);
+        // Animate electro effect for each ring
+        const ctx = this.ringContexts[idx];
+        const w = this.ringCanvases[idx].width;
+        const h = this.ringCanvases[idx].height;
+        ctx.clearRect(0, 0, w, h);
+        ctx.save();
+        ctx.translate(w/2, h/2);
+        for (let layer = 0; layer < 4; layer++) {
+          ctx.beginPath();
+          for (let i = 0; i <= 256; i++) {
+            const angle = (i / 256) * Math.PI * 2;
+            const jag = electroNoise(angle, t + idx * 0.7, layer);
+            // Glitch: randomly offset some segments
+            const glitch = glitchOffset(i, layer, t);
+            // Apply zoom to base radius
+            const baseR = 100 + layer * 13 + idx * 18;
+            const r = baseR * zoom + jag + glitch;
+            const x = Math.cos(angle) * r;
+            const y = Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+          // Glitch: randomly change color for some segments
+          const pulse = 0.7 + 0.3 * Math.sin(t * 2.5 + layer + idx);
+          // Slower and more sporadic color glitch
+          const glitchColor = Math.random() > 0.992 ? `rgba(255,255,255,${0.18 * pulse})` : `rgba(255,77,227,${0.22 * pulse - layer*0.045})`;
+          ctx.strokeStyle = glitchColor;
+          ctx.lineWidth = 26 + layer * 14;
+          ctx.shadowColor = Math.random() > 0.995 ? '#fff0b3' : '#ff4de3';
+          ctx.shadowBlur = 48 + layer * 22 * pulse;
+          ctx.stroke();
         }
-        ctx.closePath();
-        // Animate alpha and color for more intense glow
-        const pulse = 0.7 + 0.3 * Math.sin(t * 2.5 + layer);
-        ctx.strokeStyle = `rgba(255,77,227,${0.22 * pulse - layer*0.045})`;
-        ctx.lineWidth = 26 + layer * 14;
-        ctx.shadowColor = '#ff4de3';
-        ctx.shadowBlur = 48 + layer * 22 * pulse;
-        ctx.stroke();
+        ctx.restore();
+        this.ringTextures[idx].needsUpdate = true;
+        ring.rotation.z += 0.008 + idx * 0.003;
       }
-      ctx.restore();
-      this.ringTex.needsUpdate = true;
-
-      // animate ring glow and rotation
-      this.ring.rotation.z += 0.008;
     }
 
     this.renderer.render(this.scene, this.camera);
@@ -524,8 +551,8 @@ window.addEventListener("DOMContentLoaded", () => {
   new App();
   // make trigger available globally for other code (logo drop)
   window.triggerFieryOutline = () => {
-    if (window.AppInstance && window.AppInstance.ring) {
-      window.AppInstance.ring.visible = true;
+    if (window.AppInstance && window.AppInstance.rings) {
+      window.AppInstance.rings.forEach(ring => ring.visible = true);
     }
   };
 });
