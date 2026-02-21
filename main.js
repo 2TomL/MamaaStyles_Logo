@@ -132,6 +132,17 @@ class App {
         progressPercentage.textContent = Math.floor(this.loadingProgress) + "%";
       }
     }, 50);
+      // Custom color for progress < 10%
+      const origSetWidth = progressBar.style.width;
+      const origBg = progressBar.style.background;
+      const updateBarColor = () => {
+        if (this.loadingProgress < 10) {
+          progressBar.style.background = "linear-gradient(90deg, #ff4de3 0%, #fff0b3 100%)";
+        } else {
+          progressBar.style.background = "linear-gradient(90deg, #ff4de3 0%, #fff0b3 100%)";
+        }
+      };
+      setInterval(updateBarColor, 50);
   }
 
   initWaterRipple() {

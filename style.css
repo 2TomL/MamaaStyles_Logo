@@ -34,7 +34,31 @@
   opacity: 0.55;
   font-family: 'Segoe UI', Arial, sans-serif;
   letter-spacing: 0.04em;
-  transform: rotateX(18deg) skewX(-12deg);
+.progress-container {
+  width: 340px;
+  height: 16px;
+  background: rgba(255, 77, 227, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 32px;
+  box-shadow: 0 0 24px #ff4de3, 0 0 8px #fff0b3 inset;
+  border: 2px solid #ff4de3;
+}
+
+.progress-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #ff4de3 0%, #fff0b3 100%);
+  border-radius: 12px;
+  box-shadow: 0 0 32px #ff4de3, 0 0 8px #fff0b3 inset;
+  transition: width 0.2s cubic-bezier(.22,1.5,.36,1);
+  animation: barGlow 1.2s infinite alternate;
+}
+
+@keyframes barGlow {
+  0% { filter: brightness(1.1) drop-shadow(0 0 8px #ff4de3); }
+  100% { filter: brightness(1.4) drop-shadow(0 0 32px #fff0b3); }
+}
   pointer-events: none;
   z-index: 50;
   -webkit-user-select: none;
@@ -135,11 +159,22 @@ canvas {
 }
 
 .progress-percentage {
-  font-size: 2rem;
-  font-weight: 600;
-  color: #fff0b3;
-  margin-bottom: 10px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 3.2rem;
+  font-weight: 900;
+  color: #ff4de3;
+  margin-bottom: 18px;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 32px #ff4de3, 0 0 8px #fff0b3;
+  background: linear-gradient(90deg, #ff4de3 0%, #fff0b3 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  animation: loaderPulse 1.2s infinite alternate;
+}
+
+@keyframes loaderPulse {
+  0% { filter: brightness(1.1) drop-shadow(0 0 8px #ff4de3); }
+  100% { filter: brightness(1.4) drop-shadow(0 0 32px #fff0b3); }
 }
 
 .loading-text {
