@@ -60,6 +60,7 @@ class App {
 
     this.initWaterRipple();
     this.createBackground();
+    this.createGlowingRing(); // new animated glowing tube around logo
     this.bindEvents();
     this.setupAutoDrops();
     this.tick();
@@ -94,8 +95,10 @@ class App {
       // Logo animatie en ripple trigger NA loader
       function triggerLogoDropAndRipple() {
         const logo = document.getElementById("logo-shield");
+        const wrapper = document.getElementById("logo-wrapper");
         if (!logo) return;
         logo.classList.add("dropping");
+        if (wrapper) wrapper.classList.add("dropping");
         // Wacht tot animatie klaar is (1.6s), dan ripple
         setTimeout(() => {
           // Bepaal het middelpunt van de onderkant van het logo
@@ -117,6 +120,10 @@ class App {
               }
             };
             tryRipple();
+          }
+          // Start fiery outline direct na logo-drop
+          if (window.triggerFieryOutline) {
+            window.triggerFieryOutline();
           }
         }, 1700);
       }
@@ -355,7 +362,53 @@ class App {
           height
         );
       }
+      // adjust ring size so it stays around logo
+      if (this.ring && this.ringInitialRadius) {
+        const newRadius = Math.min(width, height) * 0.2;
+        const scale = newRadius / this.ringInitialRadius;
+        this.ring.scale.set(scale, scale, scale);
+      }
     });
+  }
+
+  // create an animated glowing tube/ring around the centered logo
+  createGlowingRing() {
+    // radius in world (pixels) - will be scaled on resize
+    // smaller multiplier to reduce overall ring size
+    const baseRadius = Math.min(window.innerWidth, window.innerHeight) * 0.22;
+    this.ringInitialRadius = baseRadius;
+
+    const points = [];
+    const segments = 200;
+    for (let i = 0; i <= segments; i++) {
+      const angle = (i / segments) * Math.PI * 2;
+      points.push(
+        new THREE.Vector3(
+          Math.cos(angle) * baseRadius,
+          Math.sin(angle) * baseRadius,
+          0
+        )
+      );
+    }
+    const curve = new THREE.CatmullRomCurve3(points, true);
+    // super-thick radius for a massive tube
+    const geometry = new THREE.TubeGeometry(curve, 400, 12.0, 32, true);
+    // Use a custom material with an animated, jagged, electro-style canvas texture
+    this.ringCanvas = document.createElement('canvas');
+    this.ringCanvas.width = 256;
+    this.ringCanvas.height = 256;
+    this.ringCtx = this.ringCanvas.getContext('2d');
+    this.ringTex = new THREE.CanvasTexture(this.ringCanvas);
+    this.ringTex.wrapS = this.ringTex.wrapT = THREE.RepeatWrapping;
+    this.ringMaterial = new THREE.MeshBasicMaterial({
+      map: this.ringTex,
+      transparent: true,
+      opacity: 0.97,
+      color: 0xffffff
+    });
+    this.ring = new THREE.Mesh(geometry, this.ringMaterial);
+    this.ring.visible = false; // wait for logo drop event
+    this.scene.add(this.ring);
   }
 
   setupAutoDrops() {
@@ -389,6 +442,68 @@ class App {
       this.backgroundMaterial.uniforms.rippleStrength.value = this.settings.rippleStrength;
       this.backgroundMaterial.uniforms.time.value += this.clock.getDelta();
     }
+
+    // update ring position to follow logo DOM element and animate electro effect
+    if (this.ring) {
+      const logoDom = document.getElementById("logo-shield");
+      if (logoDom) {
+        const rect = logoDom.getBoundingClientRect();
+        const worldX = rect.left + rect.width / 2 - window.innerWidth / 2;
+        // lower the ring slightly by subtracting a small offset
+        const offsetY = 20; // adjust as needed
+        const worldY = window.innerHeight / 2 - (rect.top + rect.height / 2) - offsetY;
+        this.ring.position.set(worldX, worldY, 0);
+      }
+
+
+      // Animate the electro effect on the ring's canvas with multi-octave noise
+      const ctx = this.ringCtx;
+      const w = this.ringCanvas.width;
+      const h = this.ringCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.save();
+      ctx.translate(w/2, h/2);
+      const t = this.clock.getElapsedTime();
+      // Multi-octave noise function (simple sum of sines for visual effect)
+      function electroNoise(angle, time, layer) {
+        let n = 0;
+        n += Math.sin(angle * 8 + time * 3 + layer * 1.2) * 8;
+        n += Math.cos(angle * 13 - time * 2.2 - layer) * 5;
+        n += Math.sin(angle * 23 + time * 1.7 + layer * 2.1) * 3;
+        n += Math.cos(angle * 37 - time * 1.1 - layer * 0.7) * 2;
+        n += Math.sin(angle * 61 + time * 0.7 + layer * 0.3) * 1.5;
+        return n;
+      }
+      // Draw multiple jagged, animated rings for a strong electro look
+      for (let layer = 0; layer < 4; layer++) {
+        ctx.beginPath();
+        for (let i = 0; i <= 256; i++) {
+          const angle = (i / 256) * Math.PI * 2;
+          // Multi-octave noise for jaggedness
+          const jag = electroNoise(angle, t, layer);
+          // Make the ring thicker by increasing base radius and layer spread
+          const r = 100 + layer * 13 + jag;
+          const x = Math.cos(angle) * r;
+          const y = Math.sin(angle) * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        // Animate alpha and color for more intense glow
+        const pulse = 0.7 + 0.3 * Math.sin(t * 2.5 + layer);
+        ctx.strokeStyle = `rgba(255,77,227,${0.22 * pulse - layer*0.045})`;
+        ctx.lineWidth = 26 + layer * 14;
+        ctx.shadowColor = '#ff4de3';
+        ctx.shadowBlur = 48 + layer * 22 * pulse;
+        ctx.stroke();
+      }
+      ctx.restore();
+      this.ringTex.needsUpdate = true;
+
+      // animate ring glow and rotation
+      this.ring.rotation.z += 0.008;
+    }
+
     this.renderer.render(this.scene, this.camera);
     requestAnimationFrame(() => this.tick());
   }
@@ -396,6 +511,12 @@ class App {
 
 window.addEventListener("DOMContentLoaded", () => {
   new App();
+  // make trigger available globally for other code (logo drop)
+  window.triggerFieryOutline = () => {
+    if (window.AppInstance && window.AppInstance.ring) {
+      window.AppInstance.ring.visible = true;
+    }
+  };
 });
 
 
